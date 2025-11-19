@@ -1,0 +1,12 @@
+[
+  {
+    "origin": ["http://localhost:3000"],
+    "method": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+    "maxAgeSeconds": 3600
+  },
+  {
+    "origin": ["https://YOUR-PRODUCTION-DOMAIN.com"],
+    "method": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+    "maxAgeSeconds": 3600
+  }
+]

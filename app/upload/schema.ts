@@ -1,73 +1,79 @@
 import { Schema, TypedSchema } from "firebase/ai";
 
-
-// --- 1. Define the Schema for a single RuleCondition ---
+// --- 1. RuleCondition Schema ---
 const RuleConditionSchema: TypedSchema = Schema.object({
-  description: "A single condition or check that must be satisfied for the parent rule to pass.",
+  description: "A single condition/check for a validation rule.",
   properties: {
     condition_type: Schema.string({
-      description: "The type of check being performed.",
-      enum: ['PRIOR_APPROVAL', 'REQUIRED_FACILITY_TYPE', 'ENCOUNTER_TYPE', 'REQUIRED_DIAGNOSIS', 'MUTUALLY_EXCLUSIVE', 'VALUE_CHECK', 'FORMAT_CHECK']
-    }),
-    target_codes: Schema.array({
-      description: "List of required facility types, diagnoses, or mutually exclusive codes.",
-      items: Schema.string(),
-    }),
-    required_value: Schema.string({
-      description: "Required single value, e.g., 'INPATIENT' or 'OUTPATIENT'.",
-    }),
-    operator: Schema.string({
-      description: "Comparison operator for value checks, e.g., 'GREATER_THAN', 'EQUALS', 'LESS_THAN'.",
-      enum: ['GREATER_THAN', 'EQUALS', 'LESS_THAN']
-    }),
-    threshold: Schema.number({
-      description: "The numerical threshold for value checks (e.g., 250).",
+      description: "Type of condition being performed.",
+      enum: [
+        "REQUIRES_PRIOR_APPROVAL",
+        "VALUE_CHECK",
+        "FORMAT_CHECK",
+        "ELIGIBILITY_CHECK"
+      ]
     }),
     action_on_fail: Schema.string({
-      description: "The consequence if the condition is not met: 'DENY' or 'FLAG_FOR_APPROVAL'.",
-      enum: ['DENY', 'FLAG_FOR_APPROVAL']
+      description: "Consequence if condition fails.",
+      enum: ["DENY", "FLAG_FOR_APPROVAL"]
+    }),
+    target_codes: Schema.array({
+      description: "List of codes to match (diagnoses, service codes, or facilities).",
+      items: Schema.string()
+    }),
+    required_value: Schema.string({
+      description: "Required single value for the field, e.g., 'INPATIENT' or 'OUTPATIENT'."
+    }),
+    operator: Schema.string({
+      description: "Operator for comparisons.",
+      enum: ["GREATER_THAN", "EQUALS", "LESS_THAN", "MATCHES_REGEX"]
+    }),
+    threshold: Schema.number({
+      description: "Numeric threshold for VALUE_CHECK."
     }),
     format_regex: Schema.string({
-      description: "A regular expression pattern for ID formatting rules.",
+      description: "Regex pattern for FORMAT_CHECK."
+    }),
+    condition_field: Schema.string({
+      description: "Claim field to validate (used in ELIGIBILITY_CHECK).",
+      enum: ["encounter_type", "facility_id", "diagnosis_codes"]
     })
   },
-  // Minimal required fields for a condition
   required: ["condition_type", "action_on_fail"],
+  
 });
 
-// --- 2. Define the Schema for a single ValidationRule ---
+// --- 2. ValidationRule Schema ---
 const ValidationRuleSchema: TypedSchema = Schema.object({
-  description: "A complete, structured validation rule extracted from a policy document.",
+  description: "A complete validation rule extracted from a policy document.",
   properties: {
     type: Schema.string({
-      description: "The high-level category: 'TECHNICAL' or 'MEDICAL'.",
-      enum: ['TECHNICAL', 'MEDICAL']
+      description: "Category of rule.",
+      enum: ["TECHNICAL", "MEDICAL"]
     }),
     code_type: Schema.string({
-      description: "The focus area: 'SERVICE_CODE', 'DIAGNOSIS_CODE', 'FINANCIAL_THRESHOLD', 'ENCOUNTER_TYPE_RULE', or 'ID_FORMATTING'.",
-      enum: ['SERVICE_CODE', 'DIAGNOSIS_CODE', 'FINANCIAL_THRESHOLD', 'ENCOUNTER_TYPE_RULE', 'ID_FORMATTING']
+      description: "Focus area of the rule.",
+      enum: ["SERVICE_CODE", "DIAGNOSIS_CODE", "FINANCIAL_THRESHOLD", "ENCOUNTER_TYPE_RULE", "ID_FORMATTING"]
     }),
     code_identifier: Schema.string({
-      description: "The specific code, field, or ID name this rule applies to (e.g., 'SRV1001', 'E11.9', 'paid_amount_aed', 'unique_id')."
+      description: "Field or code identifier this rule applies to."
     }),
     rule_name: Schema.string({
-      description: "A concise name for the rule (e.g., 'Major Surgery Approval')."
+      description: "Name of the rule."
     }),
     rule_description: Schema.string({
-      description: "The full text or summary of the rule condition."
+      description: "Description of the rule."
     }),
-    // The nested array of RuleConditions
     conditions: Schema.array({
-      description: "One or more condition checks that must all pass for the rule to be met.",
+      description: "Array of conditions for this rule.",
       items: RuleConditionSchema
     })
   },
-  // These fields are mandatory for every rule object
   required: ["type", "code_type", "code_identifier", "rule_name", "conditions"]
 });
 
-// --- 3. Define the Root Schema (Array of ValidationRule) ---
+// --- 3. Root Schema ---
 export const VALIDATION_RULES_SCHEMA: TypedSchema = Schema.array({
-  description: "An array of all unique claim validation rules extracted from the documents.",
+  description: "Array of all validation rules.",
   items: ValidationRuleSchema
 });

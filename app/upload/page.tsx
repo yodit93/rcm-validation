@@ -13,8 +13,8 @@ import { ai, auth, db, storage } from "@/firebase";
 import { ref as storageRef, uploadBytes } from "firebase/storage";
 import { doc, collection, serverTimestamp, setDoc } from "firebase/firestore";
 import { getGenerativeModel, Part } from "firebase/ai";
-import { create } from "domain";
 import { VALIDATION_RULES_SCHEMA } from "./schema";
+import axios from "axios";
 
 // Define the type for the file state setter functions
 type FileSetter = Dispatch<SetStateAction<File | null>>;
@@ -54,26 +54,26 @@ export default function UploadPage() {
 
     setIsUploading(true);
 
-    const claimId = doc(collection(db, "pending_claims")).id;
+    const claimBatchId = doc(collection(db, "claim_batches")).id;
     const userId = user.uid;
 
     console.log(
-      `Preparing to upload claim with ID: ${claimId} for user: ${userId}`
+      `Preparing to upload claim with ID: ${claimBatchId} for user: ${userId}`
     );
 
     const filesToUpload = [
       // Since we checked if claimFile is not null above, we can safely use the non-null assertion (!)
       {
         file: claimFile!,
-        path: `claims/${userId}/${claimId}/claim-${claimFile!.name}`,
+        path: `claims/${userId}/${claimBatchId}/claim-${claimFile!.name}`,
       },
       {
         file: technicalDoc!,
-        path: `claims/${userId}/${claimId}/tech-${technicalDoc!.name}`,
+        path: `claims/${userId}/${claimBatchId}/tech-${technicalDoc!.name}`,
       },
       {
         file: medicalDoc!,
-        path: `claims/${userId}/${claimId}/med-${medicalDoc!.name}`,
+        path: `claims/${userId}/${claimBatchId}/med-${medicalDoc!.name}`,
       },
     ];
 
@@ -117,16 +117,32 @@ export default function UploadPage() {
 
       const prompt = `
         Analyze the provided Technical and Medical documentation files. 
-        Generate a JSON array of rules for claims processing strictly following the provided JSON schema. Each rule must include type: 'technical' or 'medical', code/identifier, and value.
-        Ensure every rule mentioned in the documents is captured, including:
-        1. Prior Approval requirements based on Service Code (e.g., SRV1001) and Diagnosis Code (e.g., E11.9, Z34.0).
-        2. Financial threshold rules (paid_amount_aed > 250).
-        3. Medical constraints: Services limited by Encounter Type (INPATIENT/OUTPATIENT).
-        4. Medical constraints: Services limited by Facility Type (e.g., MATERNITY_HOSPITAL, GENERAL_HOSPITAL). For services allowed in multiple facilities, use FACILITY_TYPE_IN.
-        5. Medical constraints: Services requiring specific Diagnoses (e.g., SRV2008 requires Z34.0).
-        6. Medical constraints: Mutually Exclusive Diagnoses (e.g., R73.03 cannot coexist with E11.9).
-        7. Technical constraints: ID formatting (unique_id structure and casing).
+        Generate a JSON array of rules for claims processing strictly following the provided JSON schema. 
+        Each rule must include the following fields: type ('TECHNICAL' or 'MEDICAL'), code_type, code_identifier, rule_name, rule_description, and an array of conditions.
+
+        For each condition, include:
+        - condition_type and action_on_fail (always required)
+        - target_codes for conditions that need them:
+            • REQUIRES_PRIOR_APPROVAL
+            • ELIGIBILITY_CHECK with condition_field of 'facility_id' or 'diagnosis_codes'
+        - threshold and operator for VALUE_CHECK
+        - format_regex and operator for FORMAT_CHECK
+        - condition_field for ELIGIBILITY_CHECK
+        - required_value for ELIGIBILITY_CHECK with condition_field 'encounter_type'
+
+        Ensure:
+        1. Every rule mentioned in the documents is captured.
+        2. Prior Approval requirements based on Service Code (e.g., SRV1001) and Diagnosis Code (e.g., E11.9, Z34.0) are included.
+        3. Financial threshold rules (paid_amount_aed > 250) are included.
+        4. Medical constraints: Services limited by Encounter Type (INPATIENT/OUTPATIENT) are included.
+        5. Medical constraints: Services limited by Facility Type (e.g., MATERNITY_HOSPITAL, GENERAL_HOSPITAL) are included.
+        6. Medical constraints: Services requiring specific Diagnoses (e.g., SRV2008 requires Z34.0) are included.
+        7. Medical constraints: Mutually Exclusive Diagnoses (e.g., R73.03 cannot coexist with E11.9) are included.
+        8. Technical constraints: ID formatting rules (e.g., unique_id structure and casing) are included.
+        9. All conditions must include the required fields according to their type as listed above.
+        10. Do not omit any fields that are required by the condition type.
         `;
+
 
       const result = await model.generateContent([
         prompt,
@@ -138,9 +154,9 @@ export default function UploadPage() {
       console.log(result.response.text() ?? "No text in response.");
 
       // // 2. Create the Firestore Trigger Document
-      await setDoc(doc(db, "pending_claims", claimId), {
+      await setDoc(doc(db, "claim_batches", claimBatchId), {
         uid: userId,
-        claimId: claimId,
+        claimBatchId: claimBatchId,
         status: 'PENDING_ANALYSIS',
         submittedAt: serverTimestamp(),
         documents: {
@@ -152,18 +168,30 @@ export default function UploadPage() {
 
       const ruleJson = JSON.parse(result.response.text());
 
-      const ruleDocRef = doc(collection(db, "rules_versions", claimId)); // collection() returns a collection ref
+      const ruleDocRef = doc(collection(db, "rules_versions")); // auto ID
       await setDoc(ruleDocRef, {
-        tenantId: claimId,
-        claimId: claimId,
-        ruleVersion: ruleDocRef.id,
+        tenantId: userId,       // the claim this version belongs to
+        claimBatchId: claimBatchId,
+        ruleVersion: ruleDocRef.id, // use auto-generated ID as version
         rules: ruleJson,
         createdAt: serverTimestamp()
       });
 
       alert(
-        `Claim ${claimId} submitted successfully! The validation process has begun.`
+        `Claim ${claimBatchId} submitted successfully! The validation process has begun.`
       );
+
+      // Trigger validation process via API
+
+      try {
+        const { data } = await axios.post(
+          "https://us-central1-mini-rcm-validation-engine.cloudfunctions.net/validateClaims", 
+          { tenantId: userId }
+        );
+        console.log("Validation result:", data);
+      } catch (err) {
+        console.error("Error triggering validation:", err);
+      }
 
       // Reset state upon successful submission
       setClaimFile(null);
@@ -258,6 +286,14 @@ export default function UploadPage() {
           </button>
         </form>
       </div>
+
+     
+      <button
+        onClick={() => router.push("/results")}
+        className="mt-4 px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+      >
+        View Results
+      </button>
     </div>
   );
 }

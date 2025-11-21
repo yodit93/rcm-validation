@@ -23,6 +23,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "firebase-functions": "^4.9.0",
     "@tailwindcss/postcss": "^4",
     "@types/formidable": "^3.4.6",
     "@types/node": "^20",

@@ -9,12 +9,12 @@ import { getFunctions } from "firebase/functions";
 // Using the hardcoded values for the config that are provided by the Firebase environment.
 // This bypasses the potentially unreliable 'process.env' lookups during build.
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyAyxwz2ZVbfXcyof40c5Jd6AHQLpvnFX_4", // Using fallback from the log
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: "mini-rcm-validation-engine.firebaseapp.com",
   projectId: "mini-rcm-validation-engine",
   storageBucket: "mini-rcm-validation-engine.firebasestorage.app",
   messagingSenderId: "522534214712",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:522534214712:web:0075c158eb6cb345829acd", // Using fallback from the log
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: "G-Q46SV5TPZ8"
 };
 

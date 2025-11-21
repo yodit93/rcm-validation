@@ -50,38 +50,66 @@ export default function ResultsPage() {
     return () => unsubscribe();
   }, [router]);
 
+  useEffect(() => {
+    if (user) {
+       console.log(paidMetrics, metrics);
+    }
+  }, [user, paidMetrics,]);
+
   const fetchData = async () => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
     setLoading(true);
     try {
-      // --- Metrics ---
-      const metricsSnap = await getDocs(collection(db, "metrics_table"));
-      const metricsData: MetricsData[] = [];
-      const paidData: MetricsData[] = [];
+     const metricsSnap = await getDocs(collection(db, "metrics_table"));
 
-      metricsSnap.forEach((doc) => {
+      // Convert Firestore docs into a typed list
+      const docs = metricsSnap.docs.map((doc) => {
         const data = doc.data();
-
-        // Your structure is nested under static_rules
-        const staticRules = data.static_rules || {};
-
-        const countsMap = staticRules.counts_by_error || {};
-        const paidMap = staticRules.paid_by_error || {};
-
-        // Convert count data
-        Object.entries(countsMap).forEach(([key, value]) => {
-          metricsData.push({ category: key, count: value as number });
-        });
-
-        // Convert paid amount data
-        Object.entries(paidMap).forEach(([key, value]) => {
-          paidData.push({ category: key, paidAmount: value as number });
-        });
+        return {
+          id: doc.id,
+          processed_at: data.processed_at,
+          static_rules: data.static_rules || {},
+        };
       });
 
+      // Sort by most recent processed_at
+      docs.sort((a, b) => {
+        const aTime = a.processed_at?.toMillis?.() ?? 0;
+        const bTime = b.processed_at?.toMillis?.() ?? 0;
+        return bTime - aTime;
+      });
 
+      // Use ONLY the latest metrics run
+      const latest = docs[0];
+
+      if (!latest || !latest.static_rules) {
+        setMetrics([]);
+        setPaidMetrics([]);
+        return;
+      }
+
+      // Extract nested maps
+      const countsMap = latest.static_rules.counts_by_error || {};
+      const paidMap = latest.static_rules.paid_by_error || {};
+
+      // Convert to chart arrays
+      const metricsData: MetricsData[] = Object.entries(countsMap).map(
+        ([key, value]) => ({
+          category: key,
+          count: value as number,
+        })
+      );
+
+      const paidData: MetricsData[] = Object.entries(paidMap).map(
+        ([key, value]) => ({
+          category: key,
+          paidAmount: value as number,
+        })
+      );
+
+      // Set state
       setMetrics(metricsData);
       setPaidMetrics(paidData);
       // --- Claims ---

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/firebase";
+import { Eye, EyeOff } from "lucide-react";
 
 interface LoginFormProps {
   toggleView: () => void; // or: React.Dispatch<React.SetStateAction<boolean>>
@@ -12,6 +13,7 @@ export default function LoginForm({ toggleView }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const router = useRouter();
+  const [show, setShow] = useState(false);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -51,15 +53,28 @@ export default function LoginForm({ toggleView }: LoginFormProps) {
 
       <div className="mb-6">
         <label className="block text-gray-700 font-medium mb-1">Password</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Enter your password"
-          className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        />
+
+        <div className="relative">
+          <input
+            type={show ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            className="w-full px-4 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+
+          <button
+            type="button"
+            onClick={() => setShow(!show)}
+            aria-label={show ? "Hide password" : "Show password"}
+            className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+          >
+            {show ? <Eye size={20} /> : <EyeOff size={20} />}
+          </button>
+        </div>
       </div>
+
 
       <button
         type="submit"

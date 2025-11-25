@@ -57,8 +57,7 @@ export async function runStaticAnalytics(
         tenant_id: tenantId,
         processed_at: admin.firestore.Timestamp.now(),
         static_rules: metrics,
-      },
-      { merge: true }
+      }
     );
 
   console.log("✅ Static analytics metrics saved for tenant:", tenantId);

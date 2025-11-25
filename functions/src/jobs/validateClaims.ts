@@ -20,7 +20,10 @@ export const validateClaims = functions.https.onRequest(
 
         console.log("🔥 Starting claims validation job...");
 
-       const rulesSnapshot = await db.collection("rules_versions").get();
+      const rulesSnapshot = await db
+      .collection("rules_versions")
+      .where("tenantId", "==", req.body.tenantId)
+      .get();
 
         // Flatten all rule arrays from all versions
         const rules: Rule[] = rulesSnapshot.docs.flatMap((doc) => {

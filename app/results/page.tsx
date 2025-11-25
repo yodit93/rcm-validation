@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { db, auth } from "@/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import {
   BarChart,
@@ -59,11 +59,16 @@ export default function ResultsPage() {
   const fetchData = async () => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
-
+    console.log("Fetching metrics for user:", currentUser.uid);
     setLoading(true);
     try {
-     const metricsSnap = await getDocs(collection(db, "metrics_table"));
-
+     const metricsSnap = await getDocs(
+        query(
+          collection(db, "metrics_table"),
+          where("tenant_id", "==", currentUser.uid) // only fetch documents user is allowed to see
+        )
+      );
+      console.log("Metrics documents fetched:", metricsSnap.docs);  
       // Convert Firestore docs into a typed list
       const docs = metricsSnap.docs.map((doc) => {
         const data = doc.data();

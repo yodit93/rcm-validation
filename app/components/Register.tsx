@@ -16,7 +16,6 @@ export default function RegisterForm({ toggleView }: RegisterFormProps) {
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      if (!auth) throw new Error("Firebase auth is not initialized");
       await createUserWithEmailAndPassword(auth, email, password);
       
       console.log("User registered and logged in successfully!");

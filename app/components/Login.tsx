@@ -18,7 +18,6 @@ export default function LoginForm({ toggleView }: LoginFormProps) {
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      if (!auth) throw new Error("Firebase auth is not initialized");
       await signInWithEmailAndPassword(auth, email, password);
       
       console.log("Logged in successfully!");

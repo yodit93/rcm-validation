@@ -39,7 +39,6 @@ export default function ResultsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!auth) throw new Error("Firebase auth is not initialized");
     const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) fetchData();
@@ -51,14 +50,13 @@ export default function ResultsPage() {
     return () => unsubscribe();
   }, [router]);
 
-  // useEffect(() => {
-  //   if (user) {
-  //      console.log(paidMetrics, metrics);
-  //   }
-  // }, [user, paidMetrics]);
+  useEffect(() => {
+    if (user) {
+       console.log(paidMetrics, metrics);
+    }
+  }, [user, paidMetrics,]);
 
   const fetchData = async () => {
-    if (!auth) throw new Error("Firebase auth is not initialized");
     const currentUser = auth.currentUser;
     if (!currentUser) return;
     console.log("Fetching metrics for user:", currentUser.uid);
@@ -66,7 +64,7 @@ export default function ResultsPage() {
     try {
      const metricsSnap = await getDocs(
         query(
-          collection(db!, "metrics_table"),
+          collection(db, "metrics_table"),
           where("tenant_id", "==", currentUser.uid) // only fetch documents user is allowed to see
         )
       );
@@ -120,7 +118,7 @@ export default function ResultsPage() {
       setMetrics(metricsData);
       setPaidMetrics(paidData);
       // --- Claims ---
-      const claimsSnap = await getDocs(collection(db!, "refined_table"));
+      const claimsSnap = await getDocs(collection(db, "refined_table"));
       const claimsData: Claim[] = [];
 
       claimsSnap.forEach((doc) => {

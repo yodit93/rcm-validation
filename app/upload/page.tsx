@@ -27,6 +27,7 @@ export default function UploadPage() {
   const router = useRouter();
 
   // Quick check for authentication
+ if (!auth) throw new Error("Firebase auth is not initialized");
   const user = auth.currentUser;
   if (!user) {
     router.push("/");
@@ -54,7 +55,7 @@ export default function UploadPage() {
 
     setIsUploading(true);
 
-    const claimBatchId = doc(collection(db, "claim_batches")).id;
+    const claimBatchId = doc(collection(db!, "claim_batches")).id;
     const userId = user.uid;
 
     console.log(
@@ -80,7 +81,7 @@ export default function UploadPage() {
     try {
       // 1. Upload Files to Cloud Storage
       const uploadPromises = filesToUpload.map(async (item) => {
-        const fileRef = storageRef(storage, item.path);
+        const fileRef = storageRef(storage!, item.path);
         // uploadBytes expects a File or Blob, which item.file is guaranteed to be here.
         await uploadBytes(fileRef, item.file);
         return item.path;
@@ -88,7 +89,7 @@ export default function UploadPage() {
 
       const filePaths = await Promise.all(uploadPromises);
 
-      const model = getGenerativeModel(ai, 
+      const model = getGenerativeModel(ai!, 
         { model: "gemini-2.5-flash", 
           generationConfig: {
             responseMimeType: "application/json",
@@ -154,7 +155,7 @@ export default function UploadPage() {
       console.log(result.response.text() ?? "No text in response.");
 
       // // 2. Create the Firestore Trigger Document
-      await setDoc(doc(db, "claim_batches", claimBatchId), {
+      await setDoc(doc(db!, "claim_batches", claimBatchId), {
         uid: userId,
         claimBatchId: claimBatchId,
         status: 'PENDING_ANALYSIS',
@@ -168,7 +169,7 @@ export default function UploadPage() {
 
       const ruleJson = JSON.parse(result.response.text());
 
-      const ruleDocRef = doc(collection(db, "rules_versions")); // auto ID
+      const ruleDocRef = doc(collection(db!, "rules_versions")); // auto ID
       await setDoc(ruleDocRef, {
         tenantId: userId,       // the claim this version belongs to
         claimBatchId: claimBatchId,
